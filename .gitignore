@@ -18,3 +18,5 @@ target/
 *.pdb
 
 *.sqlite
+*.sqlite-shm
+*.sqlite-wal

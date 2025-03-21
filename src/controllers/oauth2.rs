@@ -1,9 +1,9 @@
 use axum_session::SessionNullPool;
-// use axum_session::Session;
-// use axum::Extension;
+use axum_session::Session;
+use axum::Extension;
 // use loco_oauth2::controllers::middleware::OAuth2CookieUser;
-// use loco_oauth2::controllers::oauth2::get_authorization_url;
-// use loco_oauth2::OAuth2ClientStore;
+use loco_oauth2::controllers::oauth2::get_authorization_url;
+use loco_oauth2::OAuth2ClientStore;
 use crate::models::{o_auth2_sessions, users, users::OAuth2UserProfile};
 
 // use axum_session::SessionNullPool;
@@ -24,7 +24,7 @@ use loco_oauth2::controllers::{
 /// The authorization URL for the `OAuth2` flow
 /// This will redirect the user to the `OAuth2` provider's login page
 /// and then to the callback URL
-
+///
 /// # Arguments
 /// * `session` - The axum session
 /// * `oauth_store` - The `OAuth2ClientStore` extension
@@ -108,10 +108,40 @@ use loco_oauth2::controllers::{
 // }
 
 
+/// Redirect handlre to the authorization URL for the `OAuth2` flow
+/// This will redirect the user to the `OAuth2` provider's login page
+/// and then to the callback URL
+///
+/// # Arguments
+/// * `session` - The axum session
+/// * `oauth_store` - The `OAuth2ClientStore` extension
+/// # Returns
+/// Redirect response to the `OAuth2` provider's login page
+/// # Errors
+/// `loco_rs::errors::Error` - When the `OAuth2` client cannot be retrieved
+pub async fn redirect_to_google_authorization_url(
+    session: Session<SessionNullPool>,
+    Extension(oauth2_store): Extension<OAuth2ClientStore>,
+) -> Result<impl IntoResponse> {
+    // Get the `google` Authorization Code Grant client from the `OAuth2ClientStore`
+    let mut client = oauth2_store
+        .get_authorization_code_client("google")
+        .await
+        .map_err(|e| {
+            tracing::error!("Error getting client: {:?}", e);
+            Error::InternalServerError
+        })?;
+    // Get the authorization URL and save the csrf token in the session
+    let auth_url = get_authorization_url(session, &mut client).await;
+    drop(client);
+    Ok(axum::response::Redirect::temporary(&auth_url).into_response())
+}
+
+
 pub fn routes() -> Routes {
     Routes::new()
         .prefix("api/oauth2")
-        .add("/google", get(google_authorization_url::<SessionNullPool>))
+        .add("/google", get(redirect_to_google_authorization_url))
         // Route for the JWT callback
         .add(
             "/google/callback/jwt",

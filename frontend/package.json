@@ -20,5 +20,11 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "typescript": "^5"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@biomejs/biome",
+      "core-js"
+    ]
   }
 }
